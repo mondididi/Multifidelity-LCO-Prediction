@@ -1,0 +1,33 @@
+#bytecode caches
+__pycache__/
+*.py[cod]
+
+#packing artifacts
+*.egg-info/
+build/
+dist/
+
+#venvs
+.venv/
+venv/
+env/
+
+#coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+#ides
+.vscode/
+.idea/
+*.swp
+
+#os
+.DS_Store
+Thumbs.db
+ 
+#jupyter
+.ipynb_checkpoints/
+
+#project output
+examples/out/
