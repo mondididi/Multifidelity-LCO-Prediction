@@ -34,7 +34,7 @@ def test_mass_matrix_symmetric():
 
 
 def test_damping_matrix_zero_when_undamped():
-    """Damping matrix is all zeros when ζ_h = ζ_alpha = 0 (default)."""
+    """Damping matrix is all zeros when zeta_h = zeta_alpha = 0 (default)."""
     p = TypicalSectionParameters()
     C = p.damping_matrix()
     assert np.all(C == 0)
