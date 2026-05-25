@@ -1,15 +1,18 @@
-#refer to (1) Isogai (1979) "On the transonic-dip mechanism of flutter of a sweptback wing"
-#         (2) García Pérez (2024) "Data-Driven Bifurcation Analysis of Experimental Aerolastic systems using preflutter measurements"
-#         (3) Bristol (2019)
-     
-# stores isogai-style non-dim parameters and assembles symmetric lagrangian-form M, C, K
+"""Parameter container for the 2-DOF pitch-plunge typical section.
+
+Defines TypicalSectionParameters: holds Isogai-style nondimensional parameters
+and assembles the symmetric Lagrangian-form M, C, K matrices.
+Defaults reproduce Isogai (1979) Case A.
+
+See docs/structural_model for derivation, sign conventions, and references.
+"""
 
 import numpy as np
 
 class TypicalSectionParameters():   #class handle of structural param (based on Isogai A),
     def __init__(self, 
                  a = -2.0, 
-                 x_alpha = 1.8,
+                 x_alpha = 1.8,     #semi-chords
                  r_alpha_sq = 3.48, 
                  omega_ratio = 1.0, 
                  mu = 60.0, 
@@ -51,4 +54,3 @@ class TypicalSectionParameters():   #class handle of structural param (based on 
         K = np.array([[self.omega_ratio**2, 0], 
                       [0, self.r_alpha_sq * (1 + self.beta * alpha**2)]]) # != self.alpha, 0 by default
         return K
-        
