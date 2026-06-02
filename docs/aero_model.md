@@ -309,6 +309,10 @@ Reading the structure:
 - **U* · ξ'**, **U* · α'** terms → aerodynamic damping (linear in U*)
 - **ξ''**, **α''** terms (no U*) → apparent-mass contributions
 
+**note: incompressible derivation** when comp factor (PG) is added, its added into the 2π, so 2π becomes 2π/√(1−M∞²). Therefore, every circulatory term that born from 2π·α_eff **picks up an extra comp factor.** Hence, **circ term (quasi_steady.py) is multiplied by comp factor** Also dropped the apparent mass
+
+Stage 1 is entirely circulatory terms.
+
 ### 3.4 Prandtl-Glauert compressibility correction
 
 The lift-curve slope is scaled:
