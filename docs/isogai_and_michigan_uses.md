@@ -29,13 +29,8 @@ Isogai Case A is not a physical rig — it is a *defined* nondimensional benchma
 2. **A known answer.** Its flutter behaviour is published and replicated across dozens of papers. If the solver disagrees with Isogai, the cause is *unambiguously the solver*. It is a unit test with the answer printed in the back of the book.
 3. **Full eigenvalue data and zero structural damping.** Frequencies *and* dampings are available, and the structure is undamped by design, so the flutter boundary is a pure property of the aerodynamics. A discrepancy points straight at the aero implementation, not at a damping assumption.
 
-**Heads-up 2** — what "verify on Isogai" means at the QS rung. This is a CONSISTENCY
-check (U*=0 oracle passes, modes behave sensibly, the expected QS over-
-destabilisation appears). It is NOT "match a published Isogai flutter speed":
-Isogai's famous result is the transonic-dip boundary computed at high fidelity
-(Euler/CFD), which is the target for the CFD rung -- not for QS. QS-on-Isogai
-verifies the plumbing and demonstrates the known QS limitation; it is not
-expected to hit a specific Isogai flutter number.
+One caveat on point 2, because "known answer" means different things at different fidelities. 
+Verifying QS against Isogai is a consistency check — the U*=0 oracle passes, the modes coalesce sensibly, and the expected QS over-destabilisation appears — not a demand that QS reproduce a specific published flutter speed. Isogai's famous result is the transonic-dip boundary, computed at high fidelity (Euler/CFD); that is the target for the CFD rung, not for quasi-steady. So QS-on-Isogai verifies the plumbing and exposes the known QS limitation; it is not expected to land on a particular Isogai flutter number.
 
 ## Why Michigan cannot do the verification job
 
@@ -44,8 +39,6 @@ García Pérez is a real rig, which is exactly what makes it the right *validati
 - **Confounded failure modes.** If a Michigan prediction is wrong, the cause could be (a) a code bug, (b) a parameter-extraction error, or (c) unmodelled physics in the rig. All three are entangled, so you can never cleanly attribute a disagreement.
 - **No damping data.** Figure 6 reports natural frequencies only — there is no experimental damping curve, so the damping branch of a VGBF cannot be validated against it.
 - **The rig is not even self-consistent on paper.** Assembling the published component values (m = 2.4 kg, I_α = 3.401×10⁻³ kg·m², K_h = 1580 N/m, K_α = 11.53 N·m/rad) gives coupled wind-off frequencies of **~4.0 and 9.9 Hz**, not the **measured 5.3 and 6.2 Hz**. The effective pitch inertia is roughly twice the bare-wing value once the spar and spring assembly are included, so the nondimensional parameters must be *calibrated* to the measured modes rather than computed bottom-up. If Michigan were the only reference, a wrong U\*=0 frequency could not be distinguished from a code bug.
-
-## Division of labour
 
 ## Division of labour
 
