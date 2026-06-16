@@ -56,11 +56,8 @@ def system_matrix(params: TypicalSectionParameters, alpha_eq: float =0.0, U_star
     
     if aero is not None and  U_star > 0.0:
         #if aero is provided and U_star > 0, get aero contributions from protocol and add to structural matrices.
-        raise NotImplementedError("Aero contributions to system matrix not implemented yet.")
-        #M_aero, C_aero, K_aero
-        #M = M + M_aero
-        #C = C + C_aero
-        #K = K + K_aero
+        C = C + aero.C_aero(U_star)
+        K = K + aero.K_aero(U_star)
 
     M_inv = np.linalg.inv(M) #for M^-1 in the Q matrix)
 
