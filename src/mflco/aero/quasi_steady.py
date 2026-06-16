@@ -64,3 +64,17 @@ class QuasiSteady:
 
     def aero_rhs(self, tau, y_struct, y_aero, U_star) -> np.ndarray:    #wake memory terms: if no wake memory, nothing to integrate.
         return np.zeros(0)
+    
+    def K_aero(self, U_star):
+        comp_factor = 1/np.sqrt(1 - self.M_inf**2)
+        g = (2/self.params.mu)*comp_factor
+        K_mat = np.asarray([[0, g*U_star**2],
+                            [0, -g*(0.5 + self.params.a)*U_star**2]])
+        return K_mat
+
+    def C_aero(self, U_star):
+        comp_factor = 1/np.sqrt(1 - self.M_inf**2)
+        g = (2/self.params.mu)*comp_factor
+        C_mat = np.asarray([[g*U_star,                       g*U_star*(0.5 - self.params.a)],
+                            [-g*(0.5 + self.params.a)*U_star, -g*(0.5 + self.params.a)*U_star*(0.5 - self.params.a)]])
+        return C_mat

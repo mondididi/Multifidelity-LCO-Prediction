@@ -17,4 +17,7 @@ class NoAero: #no need to implement protocol again since done in base.py
     def aero_rhs(self, tau, y_struct, y_aero, U_star) -> np.ndarray:
          """returns zeroes of (n_aero_states,) shape for aero_rhs"""
          return np.zeros(0) #len(aero_rhs(...)) == n_aero_states
-        
+    def K_aero(self, U_star):
+        return np.zeros((2, 2))
+    def C_aero(self, U_star):
+        return np.zeros((2, 2))
