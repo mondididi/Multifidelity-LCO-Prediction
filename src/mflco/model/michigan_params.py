@@ -2,12 +2,12 @@
 michigan_params.py
 ==================
 Structural calibration of the 2-DOF pitch-plunge section to the García Pérez
-et al. (AIAA J) experimental rig -- "the Michigan paper".
+et al. (AIAA J) experimental rig
 
 Calibrates the *effective* structure to the measured U=0 modes (5.3 / 6.2 Hz):
 geometry (a, x_alpha, mu) is held fixed; r_alpha_sq and omega_alpha are solved
 so the section's U=0 coupled modes match the experiment. We never tune a
-structural parameter to a U>0 quantity -- the aero-fidelity result lives in the
+structural parameter to a U>0 quantity - the aero-fidelity result lives in the
 U>0 comparison.
 
 Full reference (provenance, equations, derivation, sensitivity, test rationale):
@@ -17,6 +17,11 @@ Full reference (provenance, equations, derivation, sensitivity, test rationale):
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
+
+try:                                            # package import (normal use)
+    from .params import TypicalSectionParameters
+except ImportError:                             # allow `python michigan_params.py`
+    from mflco.model.params import TypicalSectionParameters
 
 # ----------------------------------------------------------------------------
 # Verified rig numbers (García Pérez et al.; NACA 0020, Bristol Prandtl tunnel)
@@ -30,7 +35,7 @@ B_M           = 0.1        # semichord (chord 0.2 m)               [m]
 SPAN_M        = 0.44       # span                                  [m]
 RHO_AIR       = 1.225      # air density                           [kg/m^3]
 
-# Measured U=0 coupled modes (Fig. 6 intercepts) -- the calibration targets
+# Measured U=0 coupled modes (Fig. 6 intercepts) - the calibration targets
 F_PLUNGE_HZ   = 5.3        # lower (plunge-led) branch at U=0       [Hz]
 F_PITCH_HZ    = 6.2        # upper (pitch-led)  branch at U=0       [Hz]
 
@@ -81,12 +86,14 @@ def calibrate_michigan(f_lo_hz: float = F_PLUNGE_HZ,
 
     Holds geometry fixed (a, x_alpha, mu); solves r_alpha_sq (from the mode
     ratio) and omega_alpha (from the absolute scale) so the U=0 coupled modes
-    equal (f_lo, f_hi). The one-parameter family is pinned by `omega_ratio`
+    equal (f_lo, f_hi). The one-parameter family is pinned by 'omega_ratio'
     = omega_h/omega_alpha (default 1.0 = exact veering; ~0.95 makes the lower
     mode plunge-led, matching the paper's branch labelling).
 
     Derivation (eigenproblem, the rho->T->r_alpha_sq closed form, scale, and
     back-out): see docs/michigan_params.md section 5.
+
+    Output as MichiganParams container
     """
     if f_hi_hz <= f_lo_hz:
         raise ValueError("f_hi_hz must exceed f_lo_hz")
@@ -126,22 +133,35 @@ def calibrate_michigan(f_lo_hz: float = F_PLUNGE_HZ,
     )
 
 
-def michigan_section(omega_ratio: float = 1.0, zeta: float = 0.0):
-    """
-    Build the calibrated Michigan typical section.
+def section_from_params(p: MichiganParams) -> TypicalSectionParameters:
+    """Map a calibrated MichiganParams onto a TypicalSectionParameters section.
 
-    NOTE: wire this to the real mflco section constructor. Replace the import
-    and call below with your actual class (kept explicit so the mapping from
-    nondim params -> section is reviewable, not hidden).
-    """
-    p = calibrate_michigan(omega_ratio=omega_ratio, zeta=zeta)
+    beta = 0 (linear): VGBF / eigenvalue work. The cubic pitch spring for the
+    nonlinear LCO (Fig. 17) runs is set separately. The single calibration
+    `zeta` maps onto both per-DOF structural damping ratios.
 
-    # --- INTEGRATION POINT (adjust to your package) --------------------------
-    # from mflco.structural import TypicalSection
-    # return TypicalSection(a=p.a, x_alpha=p.x_alpha, r_alpha_sq=p.r_alpha_sq,
-    #                       mu=p.mu, omega_ratio=p.omega_ratio, zeta=p.zeta)
-    # ------------------------------------------------------------------------
-    return p  # returns MichiganParams until wired; carries the dim scales too
+    returns Class typicalsection from michiganpackage (Michiganparams)
+    """
+    return TypicalSectionParameters(
+        a=p.a, x_alpha=p.x_alpha, r_alpha_sq=p.r_alpha_sq,
+        omega_ratio=p.omega_ratio, mu=p.mu, beta=0.0,
+        zeta_h=p.zeta, zeta_alpha=p.zeta,
+    )
+
+
+def michigan_section(omega_ratio: float = 1.0, zeta: float = 0.0) -> TypicalSectionParameters:
+    """Calibrated Michigan section (linear, beta=0) as a TypicalSectionParameters.
+
+    The section is pure nondimensional. To convert eigenvalues to Hz / m/s you
+    also need the dimensional scales (omega_alpha, b) -- call calibrate_michigan
+    alongside; both come from the same calibration:
+
+        cal     = calibrate_michigan(omega_ratio, zeta)
+        section = section_from_params(cal)
+        f_hz    = (omega / omega_alpha) * cal.omega_alpha / (2*pi)
+        U_ms    = cal.ustar_to_ms(U_star)
+    """
+    return section_from_params(calibrate_michigan(omega_ratio=omega_ratio, zeta=zeta))
 
 
 if __name__ == "__main__":

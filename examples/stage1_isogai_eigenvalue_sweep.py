@@ -46,10 +46,10 @@ for i in range(1, len(u_sweep_val)):
         break
 
 # step 9: plot
-fig, (ax_f, ax_d) = plt.subplots(2, 1, sharex=True, figsize=(6, 7))
+fig, (ax_f, ax_d) = plt.subplots(2, 1, figsize=(6, 7))
 ax_f.plot(u_sweep_val, freq[:, 0], label="mode 1")
 ax_f.plot(u_sweep_val, freq[:, 1], label="mode 2")
-ax_f.set_ylabel(r"$\omega\,/\,\omega_\alpha$"); ax_f.legend()
+ax_f.set_ylabel(r"Natural Frequencies $\omega$"); ax_f.legend()
 
 ax_d.axhline(0.0, color="k", lw=0.8)
 ax_d.plot(u_sweep_val, damp[:, 0]); ax_d.plot(u_sweep_val, damp[:, 1])
