@@ -6,9 +6,11 @@ damping vs *dimensional* speed (Hz, m/s) so it overlays García Pérez Fig. 6.
 """
 # NOTE: with zeta=0 the pitch mode is unstable from U*~=0 (no structural damping
 # + no C(k) lag = QS over-destabilises), so "no flutter crossing" is correct,
-# not a bug. Back out zeta from the recovery rates for a finite QS flutter speed.
+# not a bug. ZETA_STRUCT (from Fig.16 recovery rates) gives a finite QS flutter.
 
-from mflco.model.michigan_params import calibrate_michigan, section_from_params
+from mflco.model.michigan_params import (
+    calibrate_michigan, section_from_params, structural_zeta,
+)
 from mflco.aero.quasi_steady import QuasiSteady
 from mflco.model.analysis import modal_analysis, undamped_natural_frequencies
 import numpy as np
@@ -19,9 +21,13 @@ F_U0_HZ      = (5.3, 6.2)    # Fig. 6 U=0 intercepts
 U_FLUTTER_MS = 13.19         # linear flutter onset
 U_FOLD_MS    = 11.85         # subcritical fold
 
+# structural damping ratio, backed out from Fig. 16 recovery rates
+#   zeta = -lambda/omega ~ 0.014 (ballpark, range ~0.01-0.02). Set 0.0 for pure QS.
+ZETA_STRUCT  = structural_zeta()
+
 # initialise — Michigan section (calibrated); keep cal for the Hz / m/s scales
-cal = calibrate_michigan()                   # omega_ratio=1.0, zeta=0.0 defaults, output as container
-p   = section_from_params(cal)               # calibrated section (beta=0, linear), output as section for aeromodel, (arg: container)
+cal = calibrate_michigan(zeta=ZETA_STRUCT)   # structural damping from Fig.16
+p   = section_from_params(cal)               # calibrated section (beta=0, linear)
 qs  = QuasiSteady(p, M_inf=0.0)              # incompressible; swap to Peters later
 
 u_sweep_val = np.linspace(0.0, 4.5, 90)      # non-dim U* (flutter ~3.7; 4.5 brackets it)
@@ -41,8 +47,10 @@ f_hz = freq * cal.omega_alpha / (2 * np.pi)  # nondim omega/omega_alpha -> Hz
 u_ms = cal.ustar_to_ms(u_sweep_val)          # U* -> m/s
 
 # step 10: U*=0 oracle (aero off at zero speed -> must equal structural freqs)
+# note: modal_analysis returns the *damped* freq omega_d = omega_n*sqrt(1-zeta^2),
+# so allow the tiny zeta shift relative to the undamped structural freqs.
 nat, _ = undamped_natural_frequencies(p)
-assert np.allclose(np.sort(freq[0]), np.sort(nat)), (freq[0], nat)
+assert np.allclose(np.sort(freq[0]), np.sort(nat), rtol=1e-3), (freq[0], nat)
 
 # step 8: flutter = lowest U* where any mode's damping crosses + -> -
 min_damp = np.nanmin(damp, axis=1)
@@ -73,7 +81,8 @@ for ax in (ax_f, ax_d):
 
 if U_flutter_ms is not None:
     for ax in (ax_f, ax_d):
-        ax.axvline(U_flutter_ms, color="C3", ls="-.", lw=1.0)
+        ax.axvline(U_flutter_ms, color="C3", ls="-.", lw=1.0,
+                   label=f"QS flutter {U_flutter_ms:.1f} m/s")
     ax_f.set_title(f"QS flutter at U = {U_flutter_ms:.1f} m/s  (exp. {U_FLUTTER_MS})")
 else:
     ax_f.set_title("QS: no flutter crossing — pitch mode unstable from low U")

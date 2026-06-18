@@ -361,3 +361,74 @@ green now and **flips to a genuine check** the moment the section is wired —
 remove the marker then to make it load-bearing.
 
 --
+## 9. Structural damping (zeta) — back-out from recovery rates
+
+### Why
+With `zeta = 0` the QS pitch mode is unstable from U*~0 — no finite flutter
+speed, so the Fig. 6 comparison stays qualitative. A real rig has mechanical
+damping (bearings, spring mechanism, material losses); putting it in gives the
+pitch mode a *reserve*, so it crosses zero at a finite speed → a QS flutter
+**number** to compare against the experimental 13.19 m/s. (`zeta = 0` is correct
+only for the Isogai benchmark, which is frictionless by definition.)
+
+### Method: recovery rate → damping ratio
+A perturbed mode rings down as `A(t) ~ exp(lambda*t)`, `lambda < 0`. For a mode
+of frequency `omega`, `lambda = -zeta*omega`, so:
+
+```
+zeta = -lambda / omega
+```
+
+García Pérez measure `lambda` directly (Fig. 16 "recovery rate", from the slope
+of the amplitude maxima in Figs 14/15).
+
+### What the data gives (and its limits)
+- Fig. 16 plots `lambda` vs **amplitude**, at **three near-flutter speeds**
+  (11.12 / 11.43 / 11.58 m/s).
+- The small-amplitude (amp→0) intercept is the *linear* decay rate. It reads
+  `~ -0.5 /s` for **both** dofs, so a single `zeta` is adequate:
+  `zeta = 0.5 / 35.8 ~ 0.014` (omega_alpha ≈ 35.8 rad/s near veering).
+- Caveats:
+  1. This is **total** damping (structural + aero) at ~11.5 m/s, not pure
+     structural. Isolating structural needs extrapolation to U=0 (aero→0), but
+     all three speeds cluster far from zero → long, low-confidence extrapolation.
+  2. Reading `-0.5` off a low-res figure is `~±20%`.
+  → `zeta_struct ~ 0.014` is a defensible **ballpark**, range `~0.01–0.02`.
+
+### Result (QS + zeta)
+
+| zeta   | QS flutter (m/s) | error vs 13.19 |
+|--------|-----------------:|---------------:|
+| 0.000  | none (over-destabilised) | — |
+| 0.010  | 8.9              | −32%           |
+| **0.014** | **9.6**       | **−27%**       |
+| 0.020  | 10.4             | −21%           |
+| 0.050  | 13.1             | 0% (unphysical)|
+
+### Findings
+- Across the plausible range `zeta ∈ [0.01, 0.02]`, QS predicts **8.9–10.4 m/s**
+  — under-predicting the experiment by **~20–30%**. The conclusion is robust to
+  how Fig. 16 is read.
+- Matching 13.19 needs `zeta ~ 0.05`, unphysical for a flutter rig (typically
+  1–3%). So the under-prediction is **aerodynamic** (the missing C(k) wake lag),
+  not a damping bookkeeping error. No plausible structural damping rescues QS.
+
+### Discipline
+`zeta` is set from **independent** data (Fig. 16 recovery rates), then the QS
+flutter speed is **reported**. We never pick `zeta` to match 13.19 — that would
+be tuning structure to the result. "Matching needs unphysical zeta" is itself
+the finding.
+
+### Implementation
+- `structural_zeta(lam_per_s=-0.5, omega_alpha=None)` in `michigan_params.py`
+  returns `-lambda/omega` (default omega from the calibration). Value lives in
+  code, not as a magic number.
+- `examples/stage1_michigan_vgbf.py`: `ZETA_STRUCT = structural_zeta()`
+  (set `0.0` for the pure-QS figure). The U*=0 oracle uses `rtol=1e-3` because
+  `modal_analysis` returns the *damped* freq `omega_d = omega_n*sqrt(1-zeta^2)`.
+- `michigan_section(zeta=...)` maps the single `zeta` onto both `zeta_h` and
+  `zeta_alpha` (Fig. 16 gives ~equal recovery rates for both dofs near veering).
+
+### TODO (refinement, not blocking)
+- Digitise the Fig. 16 amp→0 intercepts for a tighter `zeta`.
+- Optionally split `zeta_h` vs `zeta_alpha` from the plunge vs pitch curves.

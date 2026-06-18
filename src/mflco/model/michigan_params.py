@@ -2,12 +2,12 @@
 michigan_params.py
 ==================
 Structural calibration of the 2-DOF pitch-plunge section to the García Pérez
-et al. (AIAA J) experimental rig
+et al. (AIAA J) experimental rig -- "the Michigan paper".
 
 Calibrates the *effective* structure to the measured U=0 modes (5.3 / 6.2 Hz):
 geometry (a, x_alpha, mu) is held fixed; r_alpha_sq and omega_alpha are solved
 so the section's U=0 coupled modes match the experiment. We never tune a
-structural parameter to a U>0 quantity - the aero-fidelity result lives in the
+structural parameter to a U>0 quantity -- the aero-fidelity result lives in the
 U>0 comparison.
 
 Full reference (provenance, equations, derivation, sensitivity, test rationale):
@@ -35,7 +35,7 @@ B_M           = 0.1        # semichord (chord 0.2 m)               [m]
 SPAN_M        = 0.44       # span                                  [m]
 RHO_AIR       = 1.225      # air density                           [kg/m^3]
 
-# Measured U=0 coupled modes (Fig. 6 intercepts) - the calibration targets
+# Measured U=0 coupled modes (Fig. 6 intercepts) -- the calibration targets
 F_PLUNGE_HZ   = 5.3        # lower (plunge-led) branch at U=0       [Hz]
 F_PITCH_HZ    = 6.2        # upper (pitch-led)  branch at U=0       [Hz]
 
@@ -86,14 +86,12 @@ def calibrate_michigan(f_lo_hz: float = F_PLUNGE_HZ,
 
     Holds geometry fixed (a, x_alpha, mu); solves r_alpha_sq (from the mode
     ratio) and omega_alpha (from the absolute scale) so the U=0 coupled modes
-    equal (f_lo, f_hi). The one-parameter family is pinned by 'omega_ratio'
+    equal (f_lo, f_hi). The one-parameter family is pinned by `omega_ratio`
     = omega_h/omega_alpha (default 1.0 = exact veering; ~0.95 makes the lower
     mode plunge-led, matching the paper's branch labelling).
 
     Derivation (eigenproblem, the rho->T->r_alpha_sq closed form, scale, and
     back-out): see docs/michigan_params.md section 5.
-
-    Output as MichiganParams container
     """
     if f_hi_hz <= f_lo_hz:
         raise ValueError("f_hi_hz must exceed f_lo_hz")
@@ -133,14 +131,36 @@ def calibrate_michigan(f_lo_hz: float = F_PLUNGE_HZ,
     )
 
 
+# ----------------------------------------------------------------------------
+# Structural damping, backed out from García Pérez Fig. 16 recovery rates
+# ----------------------------------------------------------------------------
+# A perturbed mode rings down as A(t) ~ exp(lambda*t); for a mode of frequency
+# omega, lambda = -zeta*omega, so zeta = -lambda/omega. The small-amplitude
+# (amp->0) intercept of Fig. 16 reads ~ -0.5 /s for BOTH dofs (so a single zeta
+# is fine). NB this is total damping (struct+aero) near flutter, not pure
+# structural -> ballpark, range ~0.01-0.02. See docs/michigan_params.md sec. 9.
+LAMBDA_RECOVERY_PER_S = -0.5   # 1/s, Fig. 16 amp->0 intercept (~ +-20%)
+
+
+def structural_zeta(lam_per_s: float = LAMBDA_RECOVERY_PER_S,
+                    omega_alpha: float | None = None) -> float:
+    """Back out the structural damping ratio from a measured recovery rate.
+
+    zeta = -lambda / omega. Default lambda from Fig. 16 (~-0.5/s); omega from
+    the calibration (omega_alpha ~ 36 rad/s near veering) if not supplied.
+    omega_alpha is zeta-independent, so the default self-call is not circular.
+    """
+    if omega_alpha is None:
+        omega_alpha = calibrate_michigan().omega_alpha
+    return -lam_per_s / omega_alpha
+
+
 def section_from_params(p: MichiganParams) -> TypicalSectionParameters:
     """Map a calibrated MichiganParams onto a TypicalSectionParameters section.
 
     beta = 0 (linear): VGBF / eigenvalue work. The cubic pitch spring for the
     nonlinear LCO (Fig. 17) runs is set separately. The single calibration
     `zeta` maps onto both per-DOF structural damping ratios.
-
-    returns Class typicalsection from michiganpackage (Michiganparams)
     """
     return TypicalSectionParameters(
         a=p.a, x_alpha=p.x_alpha, r_alpha_sq=p.r_alpha_sq,
@@ -174,6 +194,7 @@ if __name__ == "__main__":
     print(f"  mu          = {p.mu:.3f}   (geometry)")
     print(f"  omega_ratio = {p.omega_ratio:.5f}")
     print(f"  zeta        = {p.zeta}   (set via recovery-rate back-out)")
+    print(f"  zeta_struct = {structural_zeta():.4f}   (Fig.16 lambda~{LAMBDA_RECOVERY_PER_S}/s / omega_alpha)")
     print(f"  --- scales ---")
     print(f"  b           = {p.b} m")
     print(f"  omega_alpha = {p.omega_alpha:.4f} rad/s ({p.omega_alpha/2/np.pi:.4f} Hz)")
