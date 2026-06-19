@@ -66,11 +66,13 @@ def test_family_members_all_reproduce_modes(wr):
     assert (f_lo, f_hi) == pytest.approx(TARGET, abs=1e-3)
 
 
-@pytest.mark.xfail(reason="wire michigan_section() to mflco.TypicalSection first",
-                   strict=False)
-def test_section_object_built():
-    """Once wired, michigan_section() returns a real section, not the params."""
-
-    sec = michigan_section()
-    # e.g. assert sec.linearized_eigenvalues(0.0) gives U=0 modes 5.3/6.2 Hz
-    assert hasattr(sec, "system_matrix")
+def test_section_u0_modes_hz():
+    """michigan_section() builds a real section whose U=0 modes, run through the
+    analysis path and converted with omega_alpha, come out at 5.3 / 6.2 Hz."""
+    from mflco.model.michigan_params import section_from_params
+    from mflco.model.analysis import undamped_natural_frequencies
+    cal = calibrate_michigan(omega_ratio=1.0)
+    sec = section_from_params(cal)
+    nat, _ = undamped_natural_frequencies(sec)        # nondim omega/omega_alpha
+    f_hz = np.sort(nat) * cal.omega_alpha / (2 * np.pi)
+    assert f_hz == pytest.approx((5.3, 6.2), abs=1e-2)
