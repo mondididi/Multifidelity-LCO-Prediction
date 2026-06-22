@@ -298,11 +298,11 @@ The first term of each expression is **circulatory** lift/moment with C(k) = 1. 
 Substituting ξ'_L = ξ' / U* and ξ''_L = ξ'' / U*² (and analogously for α), and then forming **Q_ξ = −U*² · C_L / (πμ)**  **Q_α = +(2·U*² / πμ) · C_M**
  (and analogously for Q_α), the **generalized forces** in this codebase's time convention become:  
 
-> **Q_ξ = − (1/μ) · [ξ'' + U* · α' − a · α'']**
->       **− (2/μ) · [U*² · α + U* · ξ' + U* · (½ − a) · α']**
+> **Q_ξ = − (1/μ) · [ξ'' + U* · α' − a · α'']** (apparent mass group)
+>       **− (2/μ) · [U*² · α + U* · ξ' + U* · (½ − a) · α']** (circulatory group)
 
-> **Q_α = + (2/μ) · (½ + a) · [U*² · α + U* · ξ' + U* · (½ − a) · α']**
->       **+ (1/μ) · [a · (ξ'' − a · α'') − U* · (½ − a) · α' − (1/8) · α'']**
+> **Q_α = + (2/μ) · (½ + a) · [U*² · α + U* · ξ' + U* · (½ − a) · α']** (circulatory group)
+>       **+ (1/μ) · [a · (ξ'' − a · α'') − U* · (½ − a) · α' − (1/8) · α'']** (apparent mass group)
 
 Reading the structure:
 - **U*² · α** terms → aerodynamic stiffness (∝ dynamic pressure)

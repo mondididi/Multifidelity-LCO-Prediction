@@ -36,6 +36,13 @@ def structural_rhs(tau, y, params, aero, U_star):
     C = params.damping_matrix() #damping function, 0 arg
     K = params.stiffness_matrix(y_struct[1]) #stiffness function, 1 arg, pitch angle (alpha), struct 2nd term
 
+    #apparent mass/damping (Peters): M -> M - M_a, C -> C + C_a. QS/NoAero have
+    #neither method, so this reduces to the bare structural M, C (QS time-march unchanged).
+    if hasattr(aero, "M_a"):
+        M = M - aero.M_a()      #(M_s - M_a): apparent mass makes the EOM implicit, fold it in here
+    if hasattr(aero, "C_a"):
+        C = C + aero.C_a(U_star)#(C_s + C_a): non-circulatory apparent damping
+
     rhs = Q - (C@q_dot) - (K@q)  #rhs of eom, where Mq_ddot = Q - Cq_dot - Kq (@ for matrix multiplication)
     q_ddot = np.linalg.solve(M, rhs)  #q double dot, 2nd order, solved from M(q_ddot) = rhs ; q_ddot s.t. Mq_ddot = rhs => q_ddot = M^-1 rhs, solved via np.linalg.solve for numerical stability
 
