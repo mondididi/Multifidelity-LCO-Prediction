@@ -8,6 +8,7 @@ The Q matrix incorporates M, C, K into a single 4×4 matrix.
 """
 
 from scipy.linalg import eigh #hermitian eigenvalue solver for symmetric
+from scipy.linalg import eig as generalized_eig #generalized A x = lambda E x (Peters descriptor)
 import numpy as np
 from .params import TypicalSectionParameters
 
@@ -68,6 +69,72 @@ def system_matrix(params: TypicalSectionParameters, alpha_eq: float =0.0, U_star
 
     return Q
 
+def descriptor_matrices(params: TypicalSectionParameters, alpha_eq: float = 0.0,
+                        U_star: float = 0.0, aero=None):
+    """Build the (4+N)x(4+N) descriptor pair (E, A) for an aero model with inflow states.
+
+    First-order generalized form  E . y' = A . y,  y = [xi, alpha, xi', alpha', Lambda]
+    (N = aero.n_aero_states inflow states). Solve as the generalized eigenproblem
+    A x = lambda E x (E is nonsingular here: det E = det(M_s - M_a) * det(A_bar) != 0).
+
+        E = [[ I,            0,                  0      ],
+             [ 0,            M_s - M_a,          0      ],
+             [ 0,            aero_forcing,       A_bar  ]]
+
+        A = [[ 0,            I,                  0            ],
+             [ -(K_s+K_aero),-(C_s+C_aero+C_a),  K_aero_lambda],
+             [ 0,            aero_forcing_vel,   -U* . I      ]]
+
+    Reuses the QS circulatory K_aero/C_aero unchanged; the Peters additions are
+    the apparent mass/damping (M_a, C_a), the inflow->structure coupling
+    (K_aero_lambda), and the structure->inflow forcing (aero_forcing on q'',
+    aero_forcing_vel on q'). Unlike system_matrix this is NOT gated on U_star>0:
+    the aero blocks carry their own U* factors and vanish where they should, so
+    the U*=0 oracle (which needs M_a and aero_forcing present) is handled here.
+
+    Parameters
+    ----------
+    params, alpha_eq, U_star : see system_matrix.
+    aero : AeroModel with inflow states (n_aero_states > 0); must provide
+        K_aero, C_aero, M_a, C_a, K_aero_lambda, aero_forcing, aero_forcing_vel,
+        and the A_bar attribute.
+
+    Returns
+    -------
+    E, A : np.ndarray, each (4+N, 4+N).
+    """
+    N = aero.n_aero_states
+
+    M_s = params.mass_matrix()
+    C_s = params.damping_matrix()
+    K_s = params.stiffness_matrix(alpha_eq)
+
+    M_eff = M_s - aero.M_a()
+    C_eff = C_s + aero.C_aero(U_star) + aero.C_a(U_star)
+    K_eff = K_s + aero.K_aero(U_star)
+
+    K_al = aero.K_aero_lambda(U_star)        # (2, N)
+    A_bar = aero.A_bar                        # (N, N)
+    F_acc = aero.aero_forcing()               # (N, 2)  c_bar (x) S       on q''
+    F_vel = aero.aero_forcing_vel(U_star)     # (N, 2)  c_bar (x) [0,-U*] on q'
+
+    I2 = np.eye(2)
+    Z2 = np.zeros((2, 2))
+    Z2N = np.zeros((2, N))
+    ZN2 = np.zeros((N, 2))
+
+    E = np.block([
+        [I2,  Z2,    Z2N],
+        [Z2,  M_eff, Z2N],
+        [ZN2, F_acc, A_bar],
+    ])
+    A = np.block([
+        [Z2,     I2,     Z2N],
+        [-K_eff, -C_eff, K_al],
+        [ZN2,    F_vel,  -U_star * np.eye(N)],
+    ])
+    return E, A
+
 def linearized_eigenvalues(params: TypicalSectionParameters, alpha_eq: float = 0.0, U_star: float = 0.0, aero=None):
     """Compute the 4 complex eigenvalues of the linearized system matrix Q, they represent the natural frequencies
     
@@ -89,8 +156,13 @@ def linearized_eigenvalues(params: TypicalSectionParameters, alpha_eq: float = 0
 
     **Only returns raw eigenvalues**
     """
-    Q = system_matrix(params, alpha_eq, U_star, aero)
-    eigvalues = np.linalg.eigvals(Q)    # np.linalg.eigvals handles the standard problem Q·v = λ·v (Q is not symmetric so we can't use eigh)
+    if aero is not None and getattr(aero, "n_aero_states", 0) > 0:
+        # Peters (or any inflow model): generalized descriptor eigenproblem
+        E, A = descriptor_matrices(params, alpha_eq, U_star, aero)
+        eigvalues = generalized_eig(A, E, right=False)   # solves A x = lambda E x
+    else:
+        Q = system_matrix(params, alpha_eq, U_star, aero)
+        eigvalues = np.linalg.eigvals(Q)    # np.linalg.eigvals handles the standard problem Q·v = λ·v (Q is not symmetric so we can't use eigh)
 
     #sort by |Im λ| descending, high f modes come first
     eigvalues = eigvalues[np.argsort(-np.abs(eigvalues.imag))]
@@ -123,21 +195,37 @@ def modal_analysis(params: TypicalSectionParameters, alpha_eq: float = 0.0, U_st
     eigvalues = linearized_eigenvalues(params, alpha_eq, U_star, aero)
 
     #take one representative per complex-conjugate pair (+imag part)
-    positive_eigvalues = eigvalues[eigvalues.imag > 0] #4 eigenvalues, 2 duplicates, +,- so only take 1 representative
-    
-    #edge-case: if purely reaal eigens, divergence occurs, static instability ***need to address when happen.
-    # Expected: 2 oscillatory modes (one per DOF)
-    # If less, we've encountered a non-oscillatory eigenvalue (divergence)
-    if len(positive_eigvalues) != 2:
+    # one representative per complex-conjugate pair. Threshold (not >0) so a real
+    # lag eigenvalue carrying ~1e-15 numerical imag is not miscounted as oscillatory.
+    oscillatory = eigvalues[eigvalues.imag > 1e-8]
+
+    # divergence guard: a real eigenvalue with Re>0 is static divergence, which
+    # this oscillatory reduction would otherwise hide. (Flutter is an oscillatory
+    # mode crossing Re=0, kept below.) Won't fire on Isogai/Michigan.
+    real_eigs = eigvalues[np.abs(eigvalues.imag) <= 1e-8]
+    if np.any(real_eigs.real > 1e-6):
         raise ValueError(
-            f"Expected 2 oscillatory modes but found {len(positive_eigvalues)}. "
-            f"This indicates a non-oscillatory eigenvalue (likely divergence). "
-            f"Full eigenvalues: {eigvalues}. Handle divergence case explicitly."
-    )
+            f"Divergence: real eigenvalue with positive real part. {eigvalues}"
+        )
+
+    # The 2 STRUCTURAL modes are the 2 *least-damped* oscillatory modes. With
+    # Peters the N finite-state lag poles need not be real -- for N=3, eig(A_bar^-1)
+    # has a complex pair, giving a heavily-damped oscillatory lag mode (zeta~0.88,
+    # U*-independent). Selecting by smallest damping ratio isolates the lightly
+    # damped structure (zeta~0.01-0.02, -> 0 at flutter) from the damped wake lag,
+    # robustly across N (lag is a fast, damped process: always more damped than
+    # the structural modes). For QS (no lag) there are exactly 2 oscillatory and
+    # this is a no-op.
+    if len(oscillatory) < 2:
+        raise ValueError(
+            f"Fewer than 2 oscillatory modes found ({len(oscillatory)}). {eigvalues}"
+        )
+    zeta_all = -oscillatory.real / np.abs(oscillatory)
+    structural = oscillatory[np.argsort(zeta_all)[:2]]
 
     #extract physical quantitites
-    frequencies = np.abs(positive_eigvalues.imag) #frequency = |Im λ|
-    damping_ratios = -positive_eigvalues.real / np.abs(positive_eigvalues)
+    frequencies = np.abs(structural.imag) #frequency = |Im λ|
+    damping_ratios = -structural.real / np.abs(structural)
 
     #sort ascendeing
     order = np.argsort(frequencies)

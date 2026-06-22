@@ -18,14 +18,12 @@ Two things to know vs the Michigan script:
     right reference when zeta>0.
 """
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from mflco.model.params import TypicalSectionParameters
 from mflco.aero.peters_finite import PetersFinite
 from mflco.aero.quasi_steady import QuasiSteady
-from mflco.model.analysis import modal_analysis, linearized_eigenvalues, system_matrix
+from mflco.model.analysis import modal_analysis, system_matrix
 
 M_INF   = 0.0      # incompressible; try 0.8 for the (linear) compressible boundary
 ZETA    = 0.01     # small structural damping so a flutter crossing exists
@@ -78,7 +76,6 @@ else:
     ax_f.set_title(f"Isogai Case A (M={M_INF}) -- no flutter in U* < {U_MAX}")
 ax_f.legend(fontsize=8)
 plt.tight_layout()
-plt.savefig("stage2_isogai_vgbf.png", dpi=130)
 
 # QS comparison (the spurious low flutter from missing C(k))
 def flutter_for(aero_obj):
@@ -92,4 +89,5 @@ print(f"U*=0 oracle (vs damped struct modes): {np.sort(f0)}  ==  {struct_wd}")
 print(f"Isogai Case A (M={M_INF}, zeta={ZETA}):")
 print(f"  QS     flutter U* = {flutter_for(QuasiSteady(p, M_INF))}   (spurious -- no C(k))")
 print(f"  Peters flutter U* = {U_flutter}")
-print("saved stage2_isogai_vgbf.png")
+
+plt.show()
