@@ -83,7 +83,7 @@ for ax in (ax_f, ax_d):
 if U_flutter_ms is not None:
     for ax in (ax_f, ax_d):
         ax.axvline(U_flutter_ms, color="C2", ls="-.", lw=1.0,
-                   label=f"Peters flutter {U_flutter_ms:.1f} m/s")
+                   label=f"Peters flutter {U_flutter_ms:.2f} m/s")
     ax_f.set_title(f"Stage 2 Peters flutter at U = {U_flutter_ms:.1f} m/s  (exp. {U_FLUTTER_MS})")
 else:
     ax_f.set_title("Stage 2 Peters: no flutter crossing in swept range")

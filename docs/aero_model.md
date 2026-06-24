@@ -363,6 +363,79 @@ This is the standard thin-airfoil, PG-corrected steady result. Any implementatio
 - interface validtion: first non-trivial implementation
 - diagnostic baseline
 
+---
+
+## 4. Stage 2: Peters finite-state inflow
+
+### 4.1 Assumption
+
+Stage 1 set C(k) ≡ 1: the wake responds instantaneously, no memory, no phase lag. Stage 2 restores that memory. Theodorsen's C(k) is the *exact* frequency-domain wake lag, but it is transcendental (a ratio of Hankel functions) and cannot be written as a finite-state time-domain ODE. Peters, Karunamoorthy & Cao (1995) replace it with a **rational approximation**: the wake's induced velocity is expanded in N Glauert inflow states governed by a first-order ODE, whose transfer function (motion → induced velocity) approximates C(k). As N → ∞ the approximation converges to the exact C(k); N is an internal accuracy dial, with 3–8 states typically sufficient.
+
+The induced-flow states are the *only* addition to the airfoil loading. Everything else — the circulatory lift slope, the apparent-mass terms — is unchanged in form from the underlying unsteady theory; Stage 2 adds the wake lag (and reinstates apparent mass, which Stage 1 dropped) on top of the same circulation.
+
+### 4.2 Theory (Peters et al. 1995)
+
+The N inflow states **Λ = [λ₁ … λ_N]ᵀ** evolve under a first-order ODE. In Peters' fully non-dimensional form (length on b, time on b/V), this is his Eq. (34):
+
+> **[A]{λ̇} + {λ} = {c}(ẇ_a + ½ẇ_1)**
+
+where the right-hand side is the airfoil's downwash forcing, and **[A]** is built from four N-only primitives (Eqs. 30, 31, 35, Appendix C):
+
+> **D̄** (Eq. 30): bidiagonal, D̄_nm = +1/(2n) for n=m+1 (sub-diagonal), −1/(2n) for n=m−1 (super-diagonal), 0 otherwise.
+> **c̄** (Eq. 31): c̄_n = 2/n.
+> **d̄** (Eq. 31): d̄_n = ½ for n=1, else 0.
+> **b̄** (Appendix C, augmented least squares): b̄_n = (−1)^(n−1)·(N+n−1)!/[(N−n−1)!·(n!)²] for n≠N; b̄_N = (−1)^(n−1).
+> **[A] = D̄ + d̄b̄ᵀ + c̄d̄ᵀ + ½c̄b̄ᵀ** (Eq. 35).
+    
+D̄ is the bare state-to-state recursion; the three rank-one corrections are the algebraic price of the closure (below). The b̄ cap at n=N enforces Σb̄_n = 1, which cancels a 1/sinh η singularity in the closure (Eqs. C8–C9). Verification anchors: b̄ = [2,−1] (N=2), [6,−6,1] (N=3), [20,−90,140,−70,1] (N=5).
+
+**Closure** (Eq. 28): the N states collapse to a single induced velocity at the airfoil,
+
+> **λ₀ = ½ · (b̄ · Λ)**
+
+### 4.3 Conversion to code convention
+
+This codebase clocks time on ω_α (τ = ω_α·t), not on b/V. Under that re-scaling Peters' bare identity coefficient on {λ} becomes **U***, the reduced velocity (U* = U/(b·ω_α)) — Peters' hidden "1" is this code's U*, because the wake convection rate (V/b) reappears when time is normalised differently. The inflow ODE in code convention (`peters_finite.py: aero_rhs`) is:
+
+> **A_bar · Λ' + U* · Λ = − c̄ · w'**,   with the 3/4-chord downwash rate  **w' = ξ'' + U* · α' + (½ − a) · α''**
+
+The forcing w' is built entirely from structural motion (plunge acceleration, pitch rate, pitch acceleration) and is the abstract Glauert downwash of Peters' RHS specialised to the pitch–plunge DOFs.
+
+**Effective angle of attack** gains exactly one term over Stage 1 — the induced velocity:
+
+> **α_eff = α + ξ'/U* + (½ − a)·α'/U* + λ₀/U***
+
+The circulatory bracket of §3.3 therefore gains a single term, `+ U*·λ₀`, with everything else (force prefactors, apparent-mass group) identical in form to Stage 1. Same forces, new angle of attack.
+
+### 4.4 The EOM matrices
+
+The aero generalized force is sorted by derivative order into the structural M/C/K matrices (`model/eom.py`, `model/analysis.py`). Two physical sources feed them — the circulatory bracket and the (reinstated) apparent-mass group:
+
+- **K_aero** (∝ α), **C_aero** (∝ q̇): circulatory stiffness and damping — **identical to Stage 1 QS** (`peters_finite.py` reuses the QuasiSteady forms). First column of K_aero is zero (no aero force depends on plunge *position*).
+- **M_a** (∝ q̈): apparent mass — `[[−1/μ, a/μ], [a/μ, −(a²+⅛)/μ]]`. Symmetric (genuine fluid inertia); carries no U* and no Prandtl–Glauert (inertia is speed/compressibility independent). Folded as `M_eff = M_s − M_a`. Reintroduced at Stage 2 (Stage 1 dropped it; a q̈-proportional aero force makes the EOM implicit, requiring it be folded into the mass matrix).
+- **C_a** (∝ q̇): apparent damping — `[[0, U*/μ], [0, U*(½−a)/μ]]`. Only the pitch-rate (α') column is nonzero. Stored pre-flipped so it adds: `C_eff = C_s + C_aero + C_a`. The apparent-mass group contributes no stiffness (no displacement-proportional non-circulatory force), so there is no K_a.
+- **K_aero_lambda** (∝ Λ): the inflow → structure coupling, `(2, N)`. It is the `U*·λ₀` slice of the circulatory bracket with the same row-prefactors, factored as `K_aero_lambda @ Λ`.
+- **aero_forcing / aero_forcing_vel**: the structure → inflow coupling (RHS of the inflow ODE), split by derivative order — the q̈ slice `c̄ ⊗ [1, ½−a]` (E side) and the q̇ slice `c̄ ⊗ [0, −U*]` (A side).
+
+These four blocks (structure↔structure, wake→structure, structure→wake, wake→wake) form the closed feedback loop that realises the wake lag: motion forces the wake (aero_forcing) → the wake evolves with a first-order lag (A_bar, U*) → its induced velocity λ₀ feeds force back to the structure (K_aero_lambda). Because Λ obeys a differential (not algebraic) equation, it can only chase the forcing at finite rate, arriving late — that lateness is the C(k) phase lag in the time domain.
+
+### 4.5 Aero state contract
+
+The state vector grows from 4 to **4 + N**: `[ξ, α, ξ', α', λ₁ … λ_N]`. The linear flutter analysis assembles a descriptor generalized eigenproblem `E·ẋ = A·x` (`analysis.py: descriptor_matrices`, `linearized_eigenvalues`); E is non-singular (det E = det(M_s − M_a)·det(A_bar) ≠ 0). Because the finite-state inflow makes the lift-deficiency function rational, the flutter analysis is a **p-method** (eigenvalues solved directly at each speed), not a classical k-method. The nonlinear LCO path time-marches the same 4+N system via `solver.py` (`solve_ivp`).
+
+### 4.6 What this model captures and misses
+
+**Captures:** the wake-lag phase that QS omits, hence a physical flutter boundary; apparent-mass inertia; arbitrary-motion response (the inflow ODE is not restricted to simple-harmonic motion).
+
+**Misses:** still potential-flow, attached, thin-airfoil — no separation, no dynamic stall. No transonic physics (no shocks, no transonic dip, no Isogai Case A mechanism). 2D only. Finite-N truncation error (controllable via N). This is the boundary the Stage 4 CFD anchor exists to cross.
+
+### 4.7 Validation
+
+Validated against the Michigan pitch–plunge rig: predicted flutter speed **13.15 m/s vs 13.19 m/s experimental (0.3%)**, closing the −27% Stage 1 QS gap. Because the aerodynamic model is the only thing that changed between Stage 1 and Stage 2, this isolates the missing wake lag (not the structure) as the cause of the QS error. Correctness is further guarded by agreement between the two independent solver paths (eigenvalue/VGBF and nonlinear time-march), which agree on the flutter boundary and near-onset growth rate. LCO mechanics are validated (bounded, onset at the flutter speed, growth at the eigenvalue rate); quantitative LCO amplitude versus the García Pérez bifurcation diagram is a pending validation item.
+
+### 4.8 Role in multifidelity comparison
+
+Stage 2 is the cheapest model that gets the attached-flow flutter boundary physically right — it is the low-cost end of the cost-accuracy frontier for non-transonic regimes. Its single error source is **modelling error** (the rational C(k) approximation plus potential-flow assumptions); it has no discretisation error (it is analytical, with no mesh), which is the key structural contrast with the Stage 4 CFD model. N provides a cost-accuracy lever internal to Stage 2, before the much larger cost of the UVLM and CFD stages.
 
 ---
 
