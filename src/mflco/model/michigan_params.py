@@ -159,7 +159,7 @@ def section_from_params(p: MichiganParams) -> TypicalSectionParameters:
     """Map a calibrated MichiganParams onto a TypicalSectionParameters section.
 
     beta = 0 (linear): VGBF / eigenvalue work. The cubic pitch spring for the
-    nonlinear LCO (Fig. 17) runs is set separately. The single calibration
+    nonlinear LCO (Fig. 9) runs is set separately. The single calibration
     `zeta` maps onto both per-DOF structural damping ratios.
     """
     return TypicalSectionParameters(
@@ -202,5 +202,5 @@ if __name__ == "__main__":
     print(f"  I_eff/I_bare= {p.Ia_eff/IA_BARE_KGM2:.2f}x ,  "
           f"Kh_eff/Kh_nom={p.Kh_eff/KH_NOM_NM:.2f}x ,  "
           f"Ka_eff/Ka_nom={p.Ka_eff/KA_NOM_NMRAD:.2f}x")
-    print(f"  Fig17 fold 11.85 m/s -> U*={p.ms_to_ustar(11.85):.3f} ;  "
+    print(f"  Fig9 fold 11.85 m/s -> U*={p.ms_to_ustar(11.85):.3f} ;  "
           f"flutter 13.19 m/s -> U*={p.ms_to_ustar(13.19):.3f}")

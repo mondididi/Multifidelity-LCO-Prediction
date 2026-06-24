@@ -74,21 +74,23 @@ boundary; LCO bifurcation diagram (amplitude vs U*) for β = 3.
 ---
 
 
-## Stage 2 — Wagner indicial + Jones two-pole approximation
+## Stage 2 — Peters finite-state inflow
 
-**Goal:** Capture the unsteady delay in circulatory lift build-up.
+**Goal:** Recover the unsteady circulatory lag (Theodorsen C(k) phase) that
+quasi-steady omits, without a wake mesh.
 
-**Aero loading:** Wagner's indicial response approximated by Jones' two-pole
-rational form. Introduces two aerodynamic state variables; the integrator
-state grows from 4 to 6 components.
+**Aero loading:** Peters et al. (1995) finite-state induced-flow model. N inflow
+states (default N=6) approximate the wake as a first-order lag; the integrator
+state grows from 4 to 4+N.
 
-**Expected behaviour:** Significant improvement in LCO amplitude prediction
-over quasi-steady, at modest computational cost.
+**Result:** Recovers the flutter speed QS under-predicted — Michigan matched to
+0.3% (13.15 vs 13.19 m/s) against QS's −27% (9.6 m/s). The gap was wake lag, not
+structure.
 
-**File added:** `aero/wagner.py`.
+**File added:** `aero/peters_finite.py` (`PetersFinite`).
 
-**Deliverable:** Comparison of LCO bifurcation diagrams Stage 1 vs Stage 2 vs
-experiment.
+**Deliverable:** LCO bifurcation diagram (settled amplitude vs flow speed)
+overlaid on García Pérez Fig. 9; linear-flutter cross-check vs Isogai Case A.
 
 
 ---
@@ -103,7 +105,7 @@ expense of solving the Navier–Stokes equations.
 Aerodynamic state is the vector of wake-vortex circulations (potentially
 hundreds of states).
 
-**Expected behaviour:** Physically richer than Wagner; required to capture
+**Expected behaviour:** Physically richer than Peer's finite-state; required to capture
 wake-airfoil interactions. Captures attached-flow LCO well; cannot resolve
 shocks or boundary-layer separation.
 
@@ -146,11 +148,11 @@ by flow regime (attached / transonic / stall-bounded).
 
 | Target | Source | Used for |
 |---|---|---|
-| Isogai (1979) linear flutter boundary             | Theoretical   | Stage 0 eigen-check; Stage 1+ linear-flutter cross-check                                                                  |
-| Lee et al. (1999) post-Hopf LCO data              | Numerical     | Cubic-spring LCO amplitude/frequency for low-order stages                                                                 |
-| AGARD CT6 / Davis (1982)                          | Experimental  | CFD prescribed-motion validation before aeroelastic coupling (Stage 4)                                                    |
-| Bristol LCO rig — Tartaruga et al. (IFASD 2019)   | Experimental  | Closed-loop LCO validation; *note: freeplay nonlinearity, not cubic*                                                      |
-| García Pérez et al. (2024), Michigan/Toulouse     | Experimental  | Closed-loop LCO validation with cubic-spring nonlinearity — exact structural match. To confirm with Fintan whether to add |
+| Isogai (1979) linear flutter boundary             | Theoretical   | Stage 0 eigen-check; Stage 1+ linear-flutter cross-check                                                                              |
+| García Pérez et al., Michigan/Toulouse rig        | Experimental  | **Primary** experimental LCO anchor — cubic-spring, NACA 0020; flutter 13.19 m/s, subcritical fold 11.85 m/s (exact structural match) |
+| Lee et al. (1999) post-Hopf LCO data              | Numerical     | Numerical LCO cross-check (transonic Isogai case); earlier anchor, secondary to García Pérez                                          |
+| AGARD CT6 / Davis (1982)                          | Experimental  | CFD prescribed-motion validation before aeroelastic coupling (Stage 4)                                                                |
+| Bristol LCO rig — Tartaruga et al. (IFASD 2019)   | Experimental  | Closed-loop LCO validation; *note: freeplay nonlinearity, not cubic*                                                                  |
 
 
 ---

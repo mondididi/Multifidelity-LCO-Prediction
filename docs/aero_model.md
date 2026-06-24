@@ -178,22 +178,6 @@ When importing equations from any reference into this codebase:
 
 **Note**: k is a property of the motion (ratio of oscillation rate to chord-traversal rate), not a convention choice — it has the same numerical value regardless of which τ is used.
 
-#### Wagner-Jones constants (Jones 1940) → this codebase
-
-Wagner function in Lee convention: φ(τ_Lee) = 1 − ψ₁·exp(−ε₁·τ_Lee) − ψ₂·exp(−ε₂·τ_Lee).
-
-Jones constants: ψ₁ = 0.165, ψ₂ = 0.335, ε₁ = 0.0455, ε₂ = 0.3 (in units of 1/τ_Lee).
-
-When the indicial lag ODEs are integrated in this codebase's τ, the constants enter as ε_i · U* wherever they appear as rates. Explicitly:
-
-> Lee: dw_i / dτ_Lee = −ε_i · w_i + (forcing)
-
-becomes
-
-> This codebase: dw_i / dτ = −ε_i · U* · w_i + (forcing rescaled by U*)
-
-This rescaling will be detailed in Stage 2 (Wagner-Jones). It is flagged here because the Jones constants are commonly cited "as-is" without the convention caveat, leading to silent factor-of-U* errors if substituted directly.
-
 #### Per-stage convention statement
 
 Each stage's section in this document (and the corresponding class's docstring) should open with a statement of the form:
@@ -247,12 +231,12 @@ The phase lag in C(k) is what makes classical flutter possible. Without it, moti
 
 Each stage in this project makes a different approximation of C(k):
 
-| Stage | Aero model                          | Treatment of C(k)                              |
-|-------|-------------------------------------|------------------------------------------------|
-| 1     | Quasi-steady + Prandtl-Glauert      | C(k) ≡ 1                                       |
-| 2     | Wagner-Jones (indicial)             | Jones two-pole approximation, valid for all k  |
-| 3     | UVLM                                | Discrete vortex tracking, exact within potential-flow assumptions |
-| 4     | Unsteady Euler / intermediate CFD   | Full compressible inviscid flow                |
+| Stage | Aero model                            | Treatment of C(k)                              |
+|-------|-------------------------------------  |------------------------------------------------|
+| 1     | Quasi-steady + Prandtl-Glauert        | C(k) ≡ 1                                       |
+| 2     | Peters finite-state inflow            | N induced-flow states; first-order wake lag (C(k) phase) |
+| 3     | UVLM                                  | Discrete vortex tracking, exact within potential-flow assumptions |
+| 4     | Unsteady Euler / intermediate CFD     | Full compressible inviscid flow                |
 
 Stages 1–3 are all *inviscid, incompressible* in their raw form; Stage 1 adds compressibility via Prandtl-Glauert; Stage 4 handles compressibility natively.
 
