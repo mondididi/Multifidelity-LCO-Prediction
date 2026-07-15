@@ -149,7 +149,7 @@ ax_l.plot(bif[live, 0], bif[live, 3], "o-", label=f"Peters N={N_INFLOW}, beta={b
 
 ax_p.set_ylabel("pitch LCO amplitude [deg]")
 ax_l.set_ylabel("plunge LCO amplitude [mm]")
-for ax in (ax_p, ax_l):
+for ax in (ax_l, ax_p):
     ax.axvline(U_FLUTTER_MS, color="r", ls="--", lw=1.0, label=f"exp. flutter {U_FLUTTER_MS}")
     ax.axvline(U_FOLD_MS,    color="r", ls=":",  lw=1.0, label=f"exp. fold {U_FOLD_MS}")
     if fold_ms is not None:
