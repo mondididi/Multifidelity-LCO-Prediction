@@ -1,0 +1,67 @@
+{
+ "nominal": {
+  "rows": [
+   {
+    "U": 6.0,
+    "small": null,
+    "large": null
+   },
+   {
+    "U": 7.0,
+    "small": null,
+    "large": null
+   },
+   {
+    "U": 8.0,
+    "small": null,
+    "large": null
+   },
+   {
+    "U": 9.0,
+    "small": null,
+    "large": 14.728554706530307
+   },
+   {
+    "U": 10.0,
+    "small": null,
+    "large": 13.740353772112481
+   },
+   {
+    "U": 11.0,
+    "small": 12.725741088518602,
+    "large": null
+   },
+   {
+    "U": 11.85,
+    "small": 11.960662277467394,
+    "large": null
+   },
+   {
+    "U": 12.5,
+    "small": 11.248758970180052,
+    "large": null
+   },
+   {
+    "U": 13.19,
+    "small": 10.721356695941786,
+    "large": null
+   },
+   {
+    "U": 14.0,
+    "small": 10.269203717211443,
+    "large": null
+   },
+   {
+    "U": 15.0,
+    "small": 9.790614395631922,
+    "large": null
+   },
+   {
+    "U": 16.0,
+    "small": 9.224932310688843,
+    "large": null
+   }
+  ],
+  "probe_seconds": 118.1
+ }
+}

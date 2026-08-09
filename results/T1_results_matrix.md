@@ -3,7 +3,7 @@
 | QS | inviscid-attached | 9.665 | -26.72 | no | 13.148 | +10.95 | 2 | executed |
 | Peters N=6 | inviscid-attached | 13.148 | -0.32 | no | 13.148 | +10.95 | 17 | executed |
 | QS+Stall | viscous-static | none | -- | no | none | -- | 2 | executed |
+| ONERA (Petot laws) | viscous-dynamic | 10.875 | -17.55 | yes | 9.594 | -19.04 | 14 | executed |
 | UVLM | inviscid-attached | none | -- | -- | none | -- | est. | pending/positioned |
 | Euler (steady) | inviscid ceiling | none | -- | -- | none | -- | est. | pending/positioned |
-| ONERA | viscous-dynamic | none | -- | -- | none | -- | est. | pending/positioned |
 | rig (experiment) | -- | 13.19 | -- | yes | 11.85 | 0.00 | -- | reference |
