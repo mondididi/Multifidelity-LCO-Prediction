@@ -9,11 +9,14 @@ files. Figures follow the numbering of the paper skeleton:
     F4  Barton verification bifurcation diagram               [cached]
     F5  NACA 0020 polar with the rig trim marked at Cl_max
     F6  cost-vs-constraint frontier, non-conservative region shaded
+    F7  ONERA dynamic-stall subcritical branch                [cached]
     T1  results matrix (CSV + markdown)
 
-F1 (schematic sub/supercritical) is drawn by hand; F7 (ONERA) follows that run.
-Cached inputs are the JSONs written by stage0_barton_bifurcation.py and
-stage2_michigan_delta_sweep.py; delete them to force a recompute there.
+F1 (schematic sub/supercritical) is drawn by hand. Cached inputs are the
+JSONs written by stage0_barton_bifurcation.py, stage2b (delta sweep) and
+stage4_onera.py; delete them to force a recompute there.
+
+Run:  PYTHONPATH=src python examples/build_paper_figures.py
 """
 import csv
 import json
@@ -120,15 +123,15 @@ def f5_polar():
 
 # --- T1 + F6: results matrix and the frontier ------------------------------------
 # constraint error is measured against the FOLD (11.85): a model that reports no
-# fold hands the designer its Hopf, hence +11.3% into the unsafe region.
+# fold hands the designer its Hopf, hence +10.95% into the unsafe region.
 ROWS = [
     # model, class, U_flutter, fold?, U_fold_reported, cost/query s, executed
     ("QS", "inviscid-attached", 9.665, False, 13.148, 2.0, True),
     ("Peters N=6", "inviscid-attached", 13.148, False, 13.148, 17.0, True),
     ("QS+Stall", "viscous-static", None, False, None, 2.0, True),
+    ("ONERA (Petot laws)", "viscous-dynamic", 10.875, True, 9.594, 14.0, True),
     ("UVLM", "inviscid-attached", None, None, None, None, False),
     ("Euler (steady)", "inviscid ceiling", None, None, None, None, False),
-    ("ONERA", "viscous-dynamic", None, None, None, None, False),
 ]
 
 
@@ -176,7 +179,12 @@ def f6_frontier():
         ax.annotate(name, (cost, err), textcoords="offset points",
                     xytext=(-18, 12), fontsize=9)
     ax.plot(2.0, floor, "o", ms=11, mfc="none", mec="tab:green", mew=2)
-    for name, cost in (("ONERA", 60.0), ("Euler campaign", 5000.0)):
+    ax.plot(14.0, -19.04, "o", ms=11, color="tab:purple", zorder=5)
+    ax.annotate("ONERA (Petot laws):\nfirst model off the floor,\n"
+                "CONSERVATIVE side", (14.0, -19.04),
+                textcoords="offset points", xytext=(12, -6),
+                fontsize=8.5, color="tab:purple")
+    for name, cost in (("Euler campaign", 5000.0),):
         ax.plot(cost, floor, "s", ms=10, mfc="none", mec="0.5", ls="none")
         ax.annotate(f"{name}\n(pending)", (cost, floor),
                     textcoords="offset points", xytext=(-20, -34),
@@ -189,11 +197,52 @@ def f6_frontier():
     ax.set_ylabel("constraint error vs the fold [%]")
     ax.set_title("F6  Cost vs constraint accuracy: every fold-blind model sits "
                  "on the unsafe floor")
-    ax.grid(alpha=0.25); ax.set_ylim(-8, 20); ax.set_xlim(-0.3, 20000)
+    ax.grid(alpha=0.25); ax.set_ylim(-24, 20); ax.set_xlim(-0.3, 20000)
     plt.tight_layout()
     plt.savefig(f"{OUT}/F6_frontier.png", dpi=170)
     plt.close()
     print("F6 -> results/F6_frontier.png")
+
+
+# --- F7: the ONERA subcritical branch ---------------------------------------------
+def f7_onera():
+    """ONERA branch: published Petot laws primary, r-law variant dashed."""
+    nom = json.load(open(os.path.join(TMP, "stage4_onera.json")))["nominal"]
+    fig, ax = plt.subplots(figsize=(8.4, 5.2))
+    br = np.array(nom["branch"])
+    ax.plot(br[:, 0], br[:, 1], "o-", ms=3.5, color="tab:purple",
+            label="stable LCO branch (published NACA 0012 laws, TM-88917)")
+    ax.plot([nom["U_fold"]], [nom["amp_at_fold"]], "v", color="tab:purple",
+            ms=10, label=f"fold {nom['U_fold']:.2f} m/s "
+                         f"(amp {nom['amp_at_fold']:.1f} deg)")
+    hb = nom.get("hopf_bracket", [10.75, 11.0])
+    ax.plot([0.5 * sum(hb)], [0.0], "*", color="tab:purple", ms=13,
+            label=f"Hopf {0.5*sum(hb):.2f} m/s (bracket {hb[0]}-{hb[1]})")
+    try:
+        hyb = json.load(open(os.path.join(
+            TMP, "stage4_onera_R2hybrid.json")))["nominal"]
+        b2 = np.array(hyb["branch"])
+        ax.plot(b2[:, 0], b2[:, 1], "s--", ms=2.5, color="tab:purple",
+                alpha=0.45, label=f"r-law variant (R2=0.23): "
+                                  f"fold {hyb['U_fold']:.2f}")
+    except (FileNotFoundError, KeyError):
+        pass
+    ax.axvline(RIG_FLUTTER, color="r", ls="--", lw=1.1, label="rig flutter 13.19")
+    ax.axvline(RIG_FOLD, color="r", ls=":", lw=1.4, label="rig fold 11.85")
+    ax.axhspan(25, 45, color="0.5", alpha=0.08)
+    ax.text(13.55, 40, "beyond static-polar validity\n(report with caution)",
+            fontsize=8, color="0.35")
+    ax.set_xlabel("airspeed U [m/s]")
+    ax.set_ylabel("pitch LCO amplitude [deg]")
+    ax.set_title("F7  ONERA dynamic stall: the subcritical branch the inviscid "
+                 "axis could not produce")
+    ax.legend(fontsize=8, loc="upper left")
+    ax.grid(alpha=0.25)
+    ax.set_xlim(5.0, 16.5); ax.set_ylim(-1.5, 45)
+    plt.tight_layout()
+    plt.savefig(f"{OUT}/F7_onera_branch.png", dpi=170)
+    plt.close()
+    print("F7 -> results/F7_onera_branch.png")
 
 
 # --- cached figures ----------------------------------------------------------------
@@ -215,4 +264,5 @@ f5_polar()
 copy_cached()
 t1_matrix()
 f6_frontier()
+f7_onera()
 print(f"\nall artifacts -> {OUT}")
