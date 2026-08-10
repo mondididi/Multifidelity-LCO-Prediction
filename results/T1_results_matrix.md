@@ -1,11 +1,11 @@
 | model | class | U_flutter [m/s] | err vs 13.19 [%] | fold? | U_constraint [m/s] | err vs 11.85 [%] | cost/query [s] | status |
 |---|---|---|---|---|---|---|---|---|
-| QS | inviscid-attached | 9.665 | -26.72 | no | 9.665 | -18.44 | 2 | executed |
-| Peters N=6 | inviscid-attached | 13.148 | -0.32 | no | 13.148 | +10.95 | 17 | executed |
-| QS+Stall | viscous-static | none | -- | no | none | -- | 2 | executed |
-| ONERA (Petot laws) | viscous-dynamic | 10.875 | -17.55 | yes | 9.594 | -19.04 | 14 | executed |
+| QS | inviscid-attached | 9.665 | -26.72 | no | 9.665 | -18.44 | 0.6 | executed |
+| Peters N=6 | inviscid-attached | 13.148 | -0.32 | no | 13.148 | +10.95 | 1.3 | executed |
+| QS+Stall | viscous-static | none | -- | no | none | -- | 0.6 | executed |
+| ONERA (Petot laws) | viscous-dynamic | 10.875 | -17.55 | yes | 9.594 | -19.04 | 28.3 | executed |
 | UVLM | inviscid-attached | none | -- | -- | none | -- | est. | pending/positioned |
-| Euler (steady) | inviscid ceiling | none | -- | -- | none | -- | est. | pending/positioned |
+| Euler (steady + forced) | inviscid ceiling | -- | -- | no | none | -- | est. | ceiling executed; constraint query positioned |
 | rig (experiment) | -- | 13.19 | -- | yes | 11.85 | 0.00 | -- | reference |
 
-*QS reports its own flutter (9.665) as the boundary -- below the true fold, conservative only by accident of a -26.7% flutter error. QS+Stall predicts no instability at any airspeed: its reported boundary is unbounded -- qualitatively the least conservative entry if trusted. The +10.95% floor is the fold-blind class's best case, attained at converged flutter (Peters).*
+*QS reports its own flutter (9.665) as the boundary -- below the true fold, conservative only by accident of a -26.7% flutter error. QS+Stall predicts no instability at any airspeed: its reported boundary is unbounded -- qualitatively the least conservative entry if trusted. The +10.95% floor is the fold-blind class's best case, attained at converged flutter (Peters). Per-query costs: uniform settle primitive of Section 3.5, stamped on the evaluation machine.*

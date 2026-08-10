@@ -1,0 +1,10 @@
+{
+ "small": {
+  "cycle_work": 0.0010699735983083847,
+  "cl_mean": 1.3572790682723737,
+  "half_p2p_su2": 0.1501,
+  "half_p2p_peters_pg": 0.171,
+  "steady_cl_10deg": 1.3573,
+  "polar_cl_10deg": 0.757
+ }
+}

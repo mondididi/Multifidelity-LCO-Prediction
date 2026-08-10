@@ -126,12 +126,13 @@ def f5_polar():
 # fold hands the designer its Hopf, hence +10.95% into the unsafe region.
 ROWS = [
     # model, class, U_flutter, fold?, U_fold_reported, cost/query s, executed
-    ("QS", "inviscid-attached", 9.665, False, 9.665, 2.0, True),
-    ("Peters N=6", "inviscid-attached", 13.148, False, 13.148, 17.0, True),
-    ("QS+Stall", "viscous-static", None, False, None, 2.0, True),
-    ("ONERA (Petot laws)", "viscous-dynamic", 10.875, True, 9.594, 14.0, True),
+    ("QS", "inviscid-attached", 9.665, False, 9.665, 0.6, True),
+    ("Peters N=6", "inviscid-attached", 13.148, False, 13.148, 1.3, True),
+    ("QS+Stall", "viscous-static", None, False, None, 0.6, True),
+    ("ONERA (Petot laws)", "viscous-dynamic", 10.875, True, 9.594, 28.3, True),
     ("UVLM", "inviscid-attached", None, None, None, None, False),
-    ("Euler (steady)", "inviscid ceiling", None, None, None, None, False),
+    ("Euler (steady + forced)", "inviscid ceiling", "--", False, "none",
+     None, "ceiling executed; constraint query positioned"),
 ]
 
 
@@ -140,13 +141,19 @@ def t1_matrix():
            "U_constraint [m/s]", "err vs 11.85 [%]", "cost/query [s]", "status"]
     lines = []
     for m, cls, uf, fold, ufold, cost, done in ROWS:
-        e_f = f"{100*(uf-RIG_FLUTTER)/RIG_FLUTTER:+.2f}" if uf else "--"
-        e_c = f"{100*(ufold-RIG_FOLD)/RIG_FOLD:+.2f}" if ufold else "--"
-        lines.append([m, cls, f"{uf:.3f}" if uf else "none",
+        e_f = (f"{100*(uf-RIG_FLUTTER)/RIG_FLUTTER:+.2f}"
+               if isinstance(uf, float) else "--")
+        e_c = (f"{100*(ufold-RIG_FOLD)/RIG_FOLD:+.2f}"
+               if isinstance(ufold, float) else "--")
+        uf_c = uf if isinstance(uf, str) else (f"{uf:.3f}" if uf else "none")
+        ufold_c = ufold if isinstance(ufold, str) else (
+            f"{ufold:.3f}" if ufold else "none")
+        lines.append([m, cls, uf_c,
                       e_f, {True: "yes", False: "no", None: "--"}[fold],
-                      f"{ufold:.3f}" if ufold else "none", e_c,
-                      f"{cost:.0f}" if cost else "est.",
-                      "executed" if done else "pending/positioned"])
+                      ufold_c, e_c,
+                      f"{cost:.1f}" if cost else "est.",
+                      done if isinstance(done, str) else
+                      ("executed" if done else "pending/positioned")])
     lines.append(["rig (experiment)", "--", f"{RIG_FLUTTER}", "--", "yes",
                   f"{RIG_FOLD}", "0.00", "--", "reference"])
     with open(f"{OUT}/T1_results_matrix.csv", "w", newline="") as f:
@@ -163,7 +170,9 @@ def t1_matrix():
                 "any airspeed: its reported boundary is unbounded -- "
                 "qualitatively the least conservative entry if trusted. The "
                 "+10.95% floor is the fold-blind class's best case, attained "
-                "at converged flutter (Peters).*\n")
+                "at converged flutter (Peters). Per-query costs: uniform "
+                "settle primitive of Section 3.5, stamped on the evaluation "
+                "machine.*\n")
     print("T1 -> results/T1_results_matrix.csv + .md")
 
 
@@ -179,27 +188,30 @@ def f6_frontier():
     ax.axhline(floor, color="tab:red", ls="--", lw=1.3)
     ax.text(0.62, floor - 2.4, f"fold-blind class BEST CASE (converged "
             f"flutter): +{floor:.1f}%", fontsize=9, color="tab:red")
-    ax.plot(17.0, floor, "o", ms=11, color="tab:orange", zorder=5)
-    ax.annotate("Peters N=6\n(class best case)", (17.0, floor),
+    ax.plot(1.3, floor, "o", ms=11, color="tab:orange", zorder=5)
+    ax.annotate("Peters N=6\n(class best case)", (1.3, floor),
                 textcoords="offset points", xytext=(10, 8), fontsize=8.5)
-    ax.plot(2.0, -18.44, "o", ms=11, mfc="none", mec="tab:blue", mew=2,
+    ax.plot(0.6, -18.44, "o", ms=11, mfc="none", mec="tab:blue", mew=2,
             zorder=5)
     ax.annotate("QS: conservative BY ACCIDENT\n(flutter -26.7%: disqualified,"
-                "\nnot informative)", (2.0, -18.44),
+                "\nnot informative)", (0.6, -18.44),
                 textcoords="offset points", xytext=(-6, -34), fontsize=8)
-    ax.plot(2.0, 18.6, "^", ms=11, mfc="none", mec="tab:green", mew=2,
+    ax.plot(0.6, 18.6, "^", ms=11, mfc="none", mec="tab:green", mew=2,
             zorder=5)
     ax.annotate("QS+Stall: NO boundary reported\n(no instability predicted"
-                " -> unbounded)", (2.0, 18.6), textcoords="offset points",
+                " -> unbounded)", (0.6, 18.6), textcoords="offset points",
                 xytext=(10, -8), fontsize=8, color="tab:green")
-    ax.plot(14.0, -19.04, "o", ms=11, color="tab:purple", zorder=5)
-    ax.annotate("ONERA (Petot laws): conservative\nBY MECHANISM -- right class,\nborrowed coefficients", (14.0, -19.04),
+    ax.plot(28.3, -19.04, "o", ms=11, color="tab:purple", zorder=5)
+    ax.annotate("ONERA (Petot laws): conservative\nBY MECHANISM -- right class,\nborrowed coefficients", (28.3, -19.04),
                 textcoords="offset points", xytext=(16, 6),
                 fontsize=8.5, color="tab:purple")
-    for name, cost in (("Euler campaign", 5000.0),):
+    for name, cost in (("Euler", 6710.0),):
         ax.plot(cost, floor, "s", ms=10, mfc="none", mec="0.5", ls="none")
-        ax.annotate(f"{name}\n(pending)", (cost, floor),
-                    textcoords="offset points", xytext=(-20, -34),
+        ax.annotate("Euler: 6,710 s per forced case (MEASURED);\n"
+                    "constraint query ~ O(10) cases ~ 1e5 s\n"
+                    "(fold-blind by constr.; ceiling executed, 5.3)",
+                    (cost, floor),
+                    textcoords="offset points", xytext=(-198, 24),
                     fontsize=8.5, color="0.4")
     ax.plot(0.0, 0.0, "r*", ms=18, zorder=6)
     ax.annotate("rig: true constraint\n(fold 11.85 m/s)", (0.0, 0.0),
