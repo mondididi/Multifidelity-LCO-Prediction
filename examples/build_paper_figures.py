@@ -126,7 +126,7 @@ def f5_polar():
 # fold hands the designer its Hopf, hence +10.95% into the unsafe region.
 ROWS = [
     # model, class, U_flutter, fold?, U_fold_reported, cost/query s, executed
-    ("QS", "inviscid-attached", 9.665, False, 13.148, 2.0, True),
+    ("QS", "inviscid-attached", 9.665, False, 9.665, 2.0, True),
     ("Peters N=6", "inviscid-attached", 13.148, False, 13.148, 17.0, True),
     ("QS+Stall", "viscous-static", None, False, None, 2.0, True),
     ("ONERA (Petot laws)", "viscous-dynamic", 10.875, True, 9.594, 14.0, True),
@@ -156,6 +156,14 @@ def t1_matrix():
         f.write("|" + "---|" * len(hdr) + "\n")
         for r in lines:
             f.write("| " + " | ".join(r) + " |\n")
+    with open(f"{OUT}/T1_results_matrix.md", "a") as f:
+        f.write("\n*QS reports its own flutter (9.665) as the boundary -- "
+                "below the true fold, conservative only by accident of a "
+                "-26.7% flutter error. QS+Stall predicts no instability at "
+                "any airspeed: its reported boundary is unbounded -- "
+                "qualitatively the least conservative entry if trusted. The "
+                "+10.95% floor is the fold-blind class's best case, attained "
+                "at converged flutter (Peters).*\n")
     print("T1 -> results/T1_results_matrix.csv + .md")
 
 
@@ -163,26 +171,30 @@ def f6_frontier():
     fig, ax = plt.subplots(figsize=(8.4, 5.2))
     ax.axhspan(0, 20, color="tab:red", alpha=0.10)
     ax.axhline(0, color="k", lw=1.2)
-    ax.text(0.62, 17.2, "NON-CONSERVATIVE: model reports a boundary ABOVE\n"
-            "the true fold -- unsafe for design", fontsize=8.5, color="tab:red")
+    ax.text(60, 15.6, "NON-CONSERVATIVE: model reports a boundary\n"
+            "ABOVE the true fold -- unsafe for design", fontsize=8.5, color="tab:red")
     ax.text(0.62, -4.2, "conservative (safe side)", fontsize=8.5,
             color="tab:green")
     floor = 100 * (RIG_FLUTTER - RIG_FOLD) / RIG_FOLD
     ax.axhline(floor, color="tab:red", ls="--", lw=1.3)
-    ax.text(0.62, floor - 2.4, f"irreducible floor for the no-fold class: "
-            f"+{floor:.1f}%", fontsize=9, color="tab:red")
-    pts = [("QS", 2.0, floor, "tab:blue"),
-           ("Peters N=6", 17.0, floor, "tab:orange"),
-           ("QS+Stall", 2.0, floor, "tab:green")]
-    for name, cost, err, col in pts:
-        ax.plot(cost, err, "o", ms=11, color=col, zorder=5)
-        ax.annotate(name, (cost, err), textcoords="offset points",
-                    xytext=(-18, 12), fontsize=9)
-    ax.plot(2.0, floor, "o", ms=11, mfc="none", mec="tab:green", mew=2)
+    ax.text(0.62, floor - 2.4, f"fold-blind class BEST CASE (converged "
+            f"flutter): +{floor:.1f}%", fontsize=9, color="tab:red")
+    ax.plot(17.0, floor, "o", ms=11, color="tab:orange", zorder=5)
+    ax.annotate("Peters N=6\n(class best case)", (17.0, floor),
+                textcoords="offset points", xytext=(10, 8), fontsize=8.5)
+    ax.plot(2.0, -18.44, "o", ms=11, mfc="none", mec="tab:blue", mew=2,
+            zorder=5)
+    ax.annotate("QS: conservative BY ACCIDENT\n(flutter -26.7%: disqualified,"
+                "\nnot informative)", (2.0, -18.44),
+                textcoords="offset points", xytext=(-6, -34), fontsize=8)
+    ax.plot(2.0, 18.6, "^", ms=11, mfc="none", mec="tab:green", mew=2,
+            zorder=5)
+    ax.annotate("QS+Stall: NO boundary reported\n(no instability predicted"
+                " -> unbounded)", (2.0, 18.6), textcoords="offset points",
+                xytext=(10, -8), fontsize=8, color="tab:green")
     ax.plot(14.0, -19.04, "o", ms=11, color="tab:purple", zorder=5)
-    ax.annotate("ONERA (Petot laws):\nfirst model off the floor,\n"
-                "CONSERVATIVE side", (14.0, -19.04),
-                textcoords="offset points", xytext=(12, -6),
+    ax.annotate("ONERA (Petot laws): conservative\nBY MECHANISM -- right class,\nborrowed coefficients", (14.0, -19.04),
+                textcoords="offset points", xytext=(16, 6),
                 fontsize=8.5, color="tab:purple")
     for name, cost in (("Euler campaign", 5000.0),):
         ax.plot(cost, floor, "s", ms=10, mfc="none", mec="0.5", ls="none")
@@ -195,8 +207,8 @@ def f6_frontier():
     ax.set_xscale("symlog", linthresh=1.0)
     ax.set_xlabel("cost per fold-velocity query [s]  (log)")
     ax.set_ylabel("constraint error vs the fold [%]")
-    ax.set_title("F6  Cost vs constraint accuracy: every fold-blind model sits "
-                 "on the unsafe floor")
+    ax.set_title("F6  Cost vs constraint accuracy: the fold-blind class scatters; "
+                 "its best case is the floor")
     ax.grid(alpha=0.25); ax.set_ylim(-24, 20); ax.set_xlim(-0.3, 20000)
     plt.tight_layout()
     plt.savefig(f"{OUT}/F6_frontier.png", dpi=170)
