@@ -1,0 +1,18 @@
+# Digitised baseline (pitch_deg); provenance and tolerance in examples/exp_digitised.py
+U_ms,amplitude,kind
+11.12,0.0,eq
+11.43,0.0,eq
+11.58,0.0,eq
+12.15,0.0,eq
+12.4,0.0,eq
+12.65,0.0,eq
+13.2,0.0,eq
+11.85,3.9,lco
+11.95,4.15,lco
+12.15,4.4,lco
+12.4,5.7,lco
+12.65,9.6,lco
+13.2,14.1,lco
+13.4,14.6,lco
+11.85,0.0,fold
+13.19,0.0,hopf
