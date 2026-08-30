@@ -1,0 +1,180 @@
+"""Draft-3 paper figures: regenerated at print size, >=8pt fonts, combined panels.
+
+Produces (into results/):
+  F_d3_fig4_experiments.png   -- digitised branches, both rigs, bigger legend,
+                                 Bristol fold/Hopf markers at the QUOTED speeds
+  F_d3_vgbf.png               -- V-f / V-g, QS + Peters, both rigs (new figure)
+  F_d3_bristol_all.png        -- all four model branches + experiment, one panel
+  F_d3_michigan_all.png       -- all model branches + experiment, one panel
+
+Run:  PYTHONPATH=src python examples/figures_draft3.py     (~2 min, VGBF sweeps)
+"""
+import json, sys, os
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(__file__))
+import exp_digitised as EXP
+
+# ---- global style: print width ~6.3 in, nothing below 8 pt --------------------
+plt.rcParams.update({
+    "font.size": 9, "axes.labelsize": 9, "axes.titlesize": 9,
+    "xtick.labelsize": 8, "ytick.labelsize": 8, "legend.fontsize": 8,
+    "lines.linewidth": 1.4, "savefig.dpi": 300, "figure.dpi": 120,
+    "legend.framealpha": 0.9, "legend.handlelength": 1.8,
+})
+C = dict(QS="tab:blue", Peters="tab:orange", QS_Stall="tab:green",
+         ONERA="tab:purple")
+
+# ---- Bristol markers: use the speeds QUOTED in the source text ----------------
+# Tartaruga et al.'s text: jump-down "just above 16", flutter "just after 24";
+# their PLOTTED markers read ~17.15 / ~24.7 (see exp_digitised docstring).
+# The paper's tables/verification use ~16 / ~24 (Barton port: 16.81 / 24.0),
+# so the figure markers follow the quoted values; branch points stay as read.
+EXP.WINGS["bristol"]["fold"] = 16.0
+EXP.WINGS["bristol"]["hopf"] = 24.0
+# the unstable branch is a sketch; pin its terminus to the Hopf marker
+EXP.WINGS["bristol"]["unstable"][-2:] = [(23.6, 4), (24.0, 0)]
+
+BREC = json.load(open("results/bristol_branches.json"))
+MREC = json.load(open("results/michigan_branches.json"))
+
+def fold_pt(rec):
+    br = sorted(rec["branch"])
+    u = rec.get("U_fold") or br[0][0]
+    return u, rec.get("amp_at_fold", br[0][1])
+
+# ================================ FIG 4 =======================================
+fig, ax = plt.subplots(1, 2, figsize=(6.3, 2.9))
+EXP.draw_experiment(ax[0], "bristol")
+EXP.draw_experiment(ax[1], "michigan")
+ax[0].set_ylabel("heave amplitude [mm]")
+ax[1].set_ylabel("pitch amplitude [deg]")
+for a, lab in zip(ax, "ab"):
+    a.set_xlabel("airspeed U [m/s]"); a.grid(alpha=0.25)
+    a.legend(loc="upper left", fontsize=8)
+    a.text(1.0, -0.34, f"({lab})", transform=a.transAxes,
+           ha="right", fontweight="bold", fontsize=10)
+ax[0].set_xlim(14, 28); ax[1].set_xlim(10.7, 14.1)
+fig.tight_layout()
+fig.savefig("results/F_d3_fig4_experiments.png", bbox_inches="tight")
+plt.close(fig)
+print("-> F_d3_fig4_experiments.png")
+
+# ================================ VGBF ========================================
+from mflco.model.barton_params import BartonCal
+from mflco.model.params import TypicalSectionParameters
+from mflco.model.michigan_params import calibrate_michigan, structural_zeta
+from mflco.model.analysis import modal_analysis
+from mflco.aero.quasi_steady import QuasiSteady
+from mflco.aero.peters_finite import PetersFinite
+
+def sweep(p, cal, u_top_ms, aero):
+    f, d, ums = [], [], []
+    for u in np.linspace(0.05, cal.ms_to_ustar(u_top_ms), 420):
+        try:
+            fr, dp = modal_analysis(p, 0.0, u, aero)
+        except ValueError:
+            continue
+        f.append(np.sort(fr)[:2]); d.append(np.sort(dp)[:2])
+        ums.append(cal.ustar_to_ms(u))
+    return np.array(ums), np.array(f), np.array(d)
+
+bcal = BartonCal(2); bp = bcal.section()
+mcal = calibrate_michigan(zeta=structural_zeta())
+mp = TypicalSectionParameters(
+    a=mcal.a, x_alpha=mcal.x_alpha, r_alpha_sq=mcal.r_alpha_sq,
+    omega_ratio=mcal.omega_ratio, mu=mcal.mu, beta=1.326, delta=0.0,
+    zeta_h=mcal.zeta, zeta_alpha=mcal.zeta)
+
+fig, ax = plt.subplots(2, 2, figsize=(6.3, 4.8), sharex="col")
+for col_i, (p_, cal_, top, meas_f, wf) in enumerate((
+        (bp, bcal, 29.0, 24.0, None),
+        (mp, mcal, 15.0, 13.19, (5.30, 6.20)))):
+    for name, mk in (("QS", QuasiSteady(p_, 0.0)),
+                     ("Peters", PetersFinite(p_, 0.0, N=6))):
+        ums, f, d = sweep(p_, cal_, top, mk)
+        hz = f * cal_.omega_alpha / (2 * np.pi)
+        lab = "QS" if name == "QS" else "Peters N=6"
+        for j in range(2):
+            ax[0, col_i].plot(ums, hz[:, j], color=C[name],
+                              label=lab if (j == 0 and col_i == 0) else None)
+            ax[1, col_i].plot(ums, d[:, j], color=C[name])
+    ax[1, col_i].axhline(0, color="0.4", lw=0.9)
+    for a in ax[:, col_i]:
+        a.axvline(meas_f, color="k", ls=":", lw=1.1)
+        a.grid(alpha=0.25)
+    if col_i == 0:
+        ax[0, col_i].plot([], [], "k:", lw=1.1, label="measured flutter")
+    if wf:
+        ax[0, col_i].plot([0.15, 0.15], wf, "kD", ms=4,
+                          label="wind-off modes (meas.)")
+ax[0, 0].set_ylabel("frequency [Hz]"); ax[1, 0].set_ylabel("damping ratio [-]")
+ax[0, 0].set_title("Bristol"); ax[0, 1].set_title("Michigan")
+for a, lab in zip(ax[1, :], "ab"):
+    a.set_xlabel("airspeed U [m/s]")
+    a.text(1.0, -0.42, f"({lab})", transform=a.transAxes,
+           ha="right", fontweight="bold", fontsize=10)
+for a in ax[0, :]:
+    a.margins(y=0.10)
+ax[0, 0].legend(loc="center left"); ax[0, 1].legend(loc="lower right")
+fig.tight_layout()
+fig.savefig("results/F_d3_vgbf.png", bbox_inches="tight")
+plt.close(fig)
+print("-> F_d3_vgbf.png")
+
+# ============================ BRISTOL, ALL MODELS =============================
+fig, ax = plt.subplots(figsize=(6.3, 3.5))
+ax2 = ax.twinx()
+EXP.draw_experiment(ax2, "bristol")
+ax2.set_ylabel("experimental heave [mm] (right axis)")
+ax2.set_ylim(0, 125)
+order = (("QS", "QS", "o", "-"), ("QS_Stall", "QS+Stall (schematic polar)", "s", "--"),
+         ("Peters", "Peters N=6", "^", "-"), ("ONERA", "ONERA (schematic polar)", "D", "--"))
+for key, lab, mk, ls in order:
+    rec = BREC[key]; u, a_ = zip(*sorted(rec["branch"]))
+    ax.plot(u, a_, ls, marker=mk, ms=3.5, color=C[key], label=lab)
+    fu, fa = fold_pt(rec)
+    ax.plot([fu], [fa], "v", ms=8, color=C[key], zorder=5)
+ax.plot([], [], "kv", ms=8, label="model fold")
+ax.set_xlabel("airspeed U [m/s]")
+ax.set_ylabel("model pitch LCO amplitude [deg]")
+ax.set_xlim(13.8, 27.6); ax.set_ylim(0, 30); ax.grid(alpha=0.25)
+h1, l1 = ax.get_legend_handles_labels(); h2, l2 = ax2.get_legend_handles_labels()
+ax.legend(h1 + h2, l1 + l2, loc="upper left", fontsize=8, ncol=1)
+fig.tight_layout()
+fig.savefig("results/F_d3_bristol_all.png", bbox_inches="tight")
+plt.close(fig)
+print("-> F_d3_bristol_all.png")
+
+# ============================ MICHIGAN, ALL MODELS ============================
+fig, ax = plt.subplots(figsize=(6.3, 3.5))
+EXP.draw_experiment(ax, "michigan")
+for key, lab, mk, ls in (("QS", "QS (supercritical)", "o", "-"),
+                         ("Peters", "Peters N=6 (supercritical)", "^", "-"),
+                         ("ONERA", "ONERA, published laws (subcritical)", "D", "--")):
+    rec = MREC[key]
+    pts = sorted(rec["branch"])
+    if key == "ONERA":                      # display truncated at polar validity
+        pts = [(u_, x) for u_, x in pts if x <= 25.4]
+    u, a_ = zip(*pts)
+    ax.plot(u, a_, ls, marker=mk, ms=3.5, color=C[key], label=lab)
+    if rec.get("U_fold"):
+        fu, fa = fold_pt(rec)
+        ax.plot([fu], [fa], "v", ms=8, color=C[key], zorder=5)
+ax.plot([], [], "kv", ms=8, label="model fold")
+ax.text(0.985, 0.97, "QS+Stall: no flutter, no LCO at any\nairspeed (tested null)",
+        transform=ax.transAxes, ha="right", va="top", fontsize=8,
+        color=C["QS_Stall"])
+ax.text(11.95, 24.2, "ONERA display truncated\nat polar validity (~25 deg)",
+        ha="left", va="top", fontsize=8, color=C["ONERA"])
+ax.set_xlabel("airspeed U [m/s]")
+ax.set_ylabel("pitch LCO amplitude [deg]")
+ax.set_xlim(8.8, 14.6); ax.set_ylim(0, 31.5); ax.grid(alpha=0.25)
+ax.legend(loc="lower left", fontsize=7)
+fig.tight_layout()
+fig.savefig("results/F_d3_michigan_all.png", bbox_inches="tight")
+plt.close(fig)
+print("-> F_d3_michigan_all.png")
